@@ -1,0 +1,10 @@
+{
+  "name": "http-cache-subscriptions",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/exports.js",
+  "dependencies": {
+    "bluebird": "^3.7.0",
+    "http-fetch-queue": "^0.1.0"
+  }
+}
