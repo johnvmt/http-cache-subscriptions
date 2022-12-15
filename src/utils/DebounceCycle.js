@@ -5,14 +5,14 @@ Promise.config({
 });
 
 class DebounceCycle {
-    constructor(callback, {maxInterval, minInterval = 0, immediate = true}) {
+    constructor(callback, {maxInterval, minInterval = 0, immediate = true, start = true}) {
         this._callback = callback;
         this._minInterval = minInterval; // minimum time between start of requests
         this._maxInterval = maxInterval; // natural interval
 
         this._runStarted = new Date(); // used for calls to sleep() until one sleep() finishes
 
-        if(this._maxInterval) {
+        if(start && this._maxInterval) {
             this._sleep = !immediate;
             this.start();
         }
@@ -69,16 +69,18 @@ class DebounceCycle {
     }
 
     async cycle() {
-
         if(this.status === DebounceCycle.STATUSES.IDLE) { // only start cycle if idle
             while(this.queued || (this.started && typeof this._maxInterval === "number")) {
                 if(this._sleep)
                     await this.sleep();
+
                 this._sleep = true; // wait for all subsequent cycles
 
                 // will only run if sleep was not interrupted
                 await this.run();
             }
+
+            this._status = DebounceCycle.STATUSES.IDLE;
         }
     }
 
@@ -88,7 +90,6 @@ class DebounceCycle {
             this._started = true;
             this.cycle();
         }
-
     }
 
     stop(cancel = true) {
@@ -109,8 +110,9 @@ class DebounceCycle {
     request() {
         if(!this._queued) {
             this._queued = true;
-            if(this._sleepPromise && this._sleepInterval === this._maxInterval) { // sleep in progress using max interval
-                this._sleepPromise.cancel(); // resets sleep interval to use min interval
+            if(!this.started || (this._sleepPromise && this._sleepInterval === this._maxInterval)) { // sleep in progress using max interval
+                if(this._sleepPromise)
+                    this._sleepPromise.cancel(); // resets sleep interval to use min interval
                 this.cycle();
             }
         }

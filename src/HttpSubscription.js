@@ -16,49 +16,65 @@ class HttpSubscription extends GenericSubscription {
         this._url = url;
         this._options = mergedOptions;
 
-        this._debounceCycle = new DebounceCycle(() => {
-            // fetchOptions, contentOptions, jobOptions
-            return this._fetchQueue.enqueue(
-                this._url,
-                {
-                    ...mergedOptions.fetch,
-                    timeout: mergedOptions.timeout
-                },
-                {
-                    etag: this._etag,
-                    format: mergedOptions.format,
-                    ...mergedOptions.content
-                },
-                {
-                    ...mergedOptions.job
-                }
-            )
-            .then(result => {
-                // TODO get/save etag and hash
-                this._etag = result.etag;
+        this._debounceCycle = new DebounceCycle(
+            () => this.fetch(),
+            {
+                maxInterval: this._options.maxInterval,
+                minInterval: this._options.minInterval,
+                immediate: this._options.immediate
+            }
+        );
+    }
 
-                this.pushResult(result);
-                if(result.content)
-                    this.pushNext(result);
-            });
-        }, {
-            maxInterval: this._options.maxInterval,
-            minInterval: this._options.minInterval,
-            immediate: this._options.immediate
+    fetch() {
+        let response;
+        // fetchOptions, contentOptions, jobOptions
+        return this.pushToSubscribers('enqueue')
+            .then(() => {
+                return this._fetchQueue.enqueue(
+                    this._url,
+                    {
+                        ...this._options.fetch,
+                        timeout: this._options.timeout
+                    },
+                    {
+                        etag: this._etag,
+                        format: this._options.format,
+                        ...this._options.content
+                    },
+                    {
+                        priority: this._options.priority ?? 0,
+                        ...this._options.job
+                    }
+                )
+            }
+        )
+        .then(fetchResponse => {
+            response = fetchResponse;
+            return this.pushToSubscribers('response', response);
+        })
+        .then(() => {
+            if(response.content)
+                return this.pushToSubscribers('content', response.content);
+        })
+        .then(() => {
+            this._etag = response.headers.get('etag'); // save etag once success is achieved
+            return this.pushToSubscribers('success');
+        })
+        .catch((...args) => {
+            return this.pushToSubscribers('error', ...args);
+        })
+        .finally(() => {
+            return this.pushToSubscribers('finally')
         });
+    }
 
-        // stop cycle on cancel
-        this.once('cancel', () => {
-            this._debounceCycle.stop();
-        });
+    set status(status) {
+
     }
 
     get status() {
         // TODO get status from this._debounceCycle
-    }
-
-    pushResult(...args) {
-        this.pushToSubscriber('result', ...args);
     }
 
     /**
@@ -66,6 +82,11 @@ class HttpSubscription extends GenericSubscription {
      */
     request() {
         this._debounceCycle.request();
+    }
+
+    cancel(...args) {
+        super.cancel(...args);
+        this._debounceCycle.stop();
     }
 
     /**
@@ -93,7 +114,7 @@ class HttpSubscription extends GenericSubscription {
     /**
      * @type {Readonly<{SLEEPING: string, FETCHING: string, IDLE: string, CANCELED: string}>}
      */
-    // TODO merge with DebounceCycle statuses
+        // TODO merge with DebounceCycle statuses
     static STATUSES = Object.freeze({
         IDLE: 'IDLE',
         FETCHING: 'FETCHING',
