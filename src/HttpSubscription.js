@@ -81,7 +81,6 @@ class HttpSubscription extends GenericSubscription {
      * Request a new cycle immediately
      */
     request() {
-        console.log("REQUEST");
         this._debounceCycle.request();
     }
 
