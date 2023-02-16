@@ -27,7 +27,6 @@ class HttpSubscription extends GenericSubscription {
     }
 
     fetch() {
-        console.log("FETCH");
         let response;
         // fetchOptions, contentOptions, jobOptions
         return this.pushToSubscribers('enqueue')
