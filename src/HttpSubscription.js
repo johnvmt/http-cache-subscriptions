@@ -27,6 +27,7 @@ class HttpSubscription extends GenericSubscription {
     }
 
     fetch() {
+        console.log("FETCH");
         let response;
         // fetchOptions, contentOptions, jobOptions
         return this.pushToSubscribers('enqueue')
@@ -81,6 +82,7 @@ class HttpSubscription extends GenericSubscription {
      * Request a new cycle immediately
      */
     request() {
+        console.log("REQUEST");
         this._debounceCycle.request();
     }
 

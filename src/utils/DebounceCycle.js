@@ -42,6 +42,7 @@ class DebounceCycle {
             if(this._sleepPromise && this._sleepInterval === this._minInterval) { // cycle and sleep in progress with previous min interval
                 this._minInterval = minInterval;
                 this._sleepPromise.cancel(); // resets sleep interval
+                this._status = DebounceCycle.STATUSES.IDLE;
                 this.cycle(); // reset cycle
             }
             else
@@ -100,8 +101,10 @@ class DebounceCycle {
             if(cancel) {
                 if(this._runPromise)
                     this._runPromise.cancel();
-                else if(this._sleepPromise)
+                else if(this._sleepPromise) {
                     this._sleepPromise.cancel();
+                    this._status = DebounceCycle.STATUSES.IDLE;
+                }
             }
         }
 
@@ -111,8 +114,10 @@ class DebounceCycle {
         if(!this._queued) {
             this._queued = true;
             if(!this.started || (this._sleepPromise && this._sleepInterval === this._maxInterval)) { // sleep in progress using max interval
-                if(this._sleepPromise)
+                if(this._sleepPromise) {
                     this._sleepPromise.cancel(); // resets sleep interval to use min interval
+                    this._status = DebounceCycle.STATUSES.IDLE;
+                }
                 this.cycle();
             }
         }
@@ -152,12 +157,12 @@ class DebounceCycle {
     }
 
     static sleep(ms) {
-        return new Promise((resolve, reject, onCancel) => {
+        return (new Promise((resolve, reject, onCancel) => {
             const timeout = setTimeout(resolve, ms);
 
             if(onCancel)
                 onCancel(() => clearTimeout(timeout));
-        });
+        }));
     }
 
     static functionPromise(callback) {
